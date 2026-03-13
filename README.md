@@ -1,6 +1,11 @@
 # oana-sessions
 
-## Coremanager sync
+## Build & Deploy
+```bash
+docker build -t registry.asdf.ooo/oana . && docker push registry.asdf.ooo/oana
+```
+
+## Oana sync
 
 On startup, the app now:
 

@@ -3,40 +3,108 @@
 @tailwind utilities;
 
 @plugin "daisyui" {
-  themes: light;
+  themes: oana --default;
+}
+
+@plugin "daisyui/theme" {
+  name: "oana";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: #fffaf0;
+  --color-base-200: #f8fbfd;
+  --color-base-300: #e6f1f5;
+  --color-base-content: #24414a;
+  --color-primary: #1f7a8c;
+  --color-primary-content: #f3fbfd;
+  --color-secondary: #f2b57f;
+  --color-secondary-content: #4e3521;
+  --color-accent: #1ea896;
+  --color-accent-content: #effdfa;
+  --color-neutral: #143847;
+  --color-neutral-content: #eef7fb;
+  --color-info: #76bbe4;
+  --color-info-content: #123848;
+  --color-success: #1ea896;
+  --color-success-content: #effdfa;
+  --color-warning: #f0a35e;
+  --color-warning-content: #4f341b;
+  --color-error: #d75a4a;
+  --color-error-content: #fff5f2;
+  --radius-selector: 1rem;
+  --radius-field: 1rem;
+  --radius-box: 1.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
 }
 
 body {
   margin: 0;
-  padding: 18px;
   min-height: 100vh;
-  background: #f6f7f9;
-  color: #1f2937;
-  font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  padding: 24px 18px 40px;
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--color-secondary) 42%, transparent) 0%, transparent 28%),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--color-info) 26%, transparent) 0%, transparent 32%),
+    linear-gradient(180deg, var(--color-base-100) 0%, var(--color-base-200) 38%, #eef7fb 100%);
+  color: var(--color-base-content);
+  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+.sessions-page {
+  max-width: 1360px;
+  margin: 0 auto;
+  background: transparent;
+}
+
+.sessions-page[data-theme="oana"] {
+  background-color: transparent;
+}
+
+.sessions-nav {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.sessions-brand {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.sessions-nav-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+  flex: 0 0 auto;
 }
 
 .sessions-page h1 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: var(--color-neutral);
+  font-family: "Trebuchet MS", "Avenir Next", sans-serif;
+  font-size: clamp(1.25rem, 2.4vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
 }
 
-.status-text {
-  margin-top: 6px;
-  margin-bottom: 16px;
-  font-size: 0.9rem;
-  color: #6b7280;
-}
-
-.status-ok {
-  color: #0f766e;
-  font-weight: 500;
-}
-
-.status-warn {
-  color: #a16207;
-  font-weight: 500;
+.sessions-alert {
+  margin-bottom: 18px;
+  background: color-mix(in srgb, var(--color-base-100) 85%, white 15%);
+  border-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
 
 .session-day {
@@ -46,7 +114,7 @@ body {
 .day-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 18px;
 }
 
 @media (min-width: 900px) {
@@ -61,107 +129,146 @@ body {
   }
 }
 
-.day-card {
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 6px;
+.sessions-day-card {
+  background: color-mix(in srgb, var(--color-base-100) 90%, white 10%);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 12%, transparent);
+  border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--color-neutral) 8%, transparent);
+  backdrop-filter: blur(10px);
 }
 
-.day-card::before {
+.sessions-day-card::before {
   content: "";
   display: block;
-  height: 4px;
+  height: 8px;
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--day-color, #d1d5db) 88%, white 12%) 0%,
-    var(--day-color, #d1d5db) 50%,
-    color-mix(in srgb, var(--day-color, #d1d5db) 72%, #6366f1 28%) 100%
+    color-mix(in srgb, var(--day-color, var(--color-info)) 78%, white 22%) 0%,
+    var(--day-color, var(--color-info)) 45%,
+    color-mix(in srgb, var(--day-color, var(--color-info)) 70%, var(--color-primary) 30%) 100%
   );
 }
 
+.day-card-body {
+  gap: 0;
+  padding: 16px 18px 12px;
+}
+
 .day-card-title {
+  width: 100%;
   margin: 0;
-  padding: 10px 12px;
   text-align: center;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  color: #111827;
+  color: var(--color-neutral);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
 }
 
 .day-card-weekday {
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #64748b;
-  font-weight: 600;
+  color: color-mix(in srgb, var(--color-primary) 78%, white 22%);
+  font-weight: 700;
 }
 
 .day-card-date {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #111827;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-neutral);
 }
 
 .day-card-table-wrap {
-  overflow-x: auto;
+  padding-top: 8px;
 }
 
-.session-table {
+.sessions-table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  margin-bottom: 0;
 }
 
-.session-table thead th {
-  border: 0;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  padding: 8px;
-  text-align: left;
-  background-color: #f8fafc;
-  color: #475569;
-  font-weight: 600;
-  font-size: 0.8rem;
+.sessions-table thead th {
+  border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 12%, transparent);
+  padding: 10px 8px 9px;
+  background-color: transparent;
+  color: color-mix(in srgb, var(--color-base-content) 75%, white 25%);
+  font-weight: 700;
+  font-size: 0.74rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.08em;
 }
 
-.session-table tbody td {
-  border: 0;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  padding: 10px 8px;
-  text-align: left;
-  font-size: 0.92rem;
+.sessions-table tbody td {
+  border-bottom: 1px dashed color-mix(in srgb, var(--color-primary) 14%, transparent);
+  padding: 12px 8px;
+  font-size: 0.95rem;
   vertical-align: top;
 }
 
-.session-table tbody tr:nth-child(odd) {
-  background-color: #fcfcfd;
+.sessions-table tbody tr:nth-child(odd) {
+  background-color: color-mix(in srgb, var(--color-base-100) 70%, white 30%);
 }
 
-.session-table tbody tr:last-child td {
+.sessions-table tbody tr:hover {
+  background-color: color-mix(in srgb, var(--color-info) 14%, white 86%);
+}
+
+.sessions-table tbody tr:last-child td {
   border-bottom: 0;
 }
 
-.session-table thead th:first-child,
-.session-table tbody td:first-child {
-  width: 150px;
+.sessions-table thead th:first-child,
+.sessions-table tbody td:first-child {
+  width: 148px;
   white-space: nowrap;
+  color: color-mix(in srgb, var(--color-primary) 82%, var(--color-neutral) 18%);
+  font-weight: 600;
 }
 
 .participants-cell {
+  font-weight: 700;
+  color: var(--color-neutral);
+}
+
+.sessions-nav-link {
+  color: color-mix(in srgb, var(--color-primary) 88%, var(--color-neutral) 12%);
+  font-size: 0.92rem;
   font-weight: 600;
-  color: #111827;
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 22%, transparent);
+  padding-bottom: 1px;
+}
+
+.sessions-nav-link:hover {
+  color: var(--color-neutral);
+  border-bottom-color: color-mix(in srgb, var(--color-neutral) 28%, transparent);
 }
 
 .sessions-footer {
-  margin-top: 20px;
+  margin-top: 22px;
   text-align: center;
-  color: #6b7280;
-  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--color-base-content) 72%, white 28%);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 18px 14px 32px;
+  }
+
+  .sessions-nav {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .sessions-nav-tools {
+    justify-content: flex-end;
+  }
+
+  .sessions-day-card {
+    border-radius: 16px;
+  }
 }

@@ -209,35 +209,44 @@
   <title>Oana Sessions</title>
 </svelte:head>
 
-<main class="sessions-page">
+<main class="sessions-page" data-theme="oana">
+  <nav class="navbar sessions-nav" aria-label="Session navigation">
+    <div class="navbar-start sessions-brand">
+      <h1>Oana Sessions</h1>
+    </div>
+
+    <div class="navbar-end sessions-nav-tools">
+      <a class="sessions-nav-link" href="/">Sessions</a>
+    </div>
+  </nav>
   {#if loading}
-    <div class="alert">
+    <div class="alert shadow-sm sessions-alert">
       <span>Sessions werden aktuell geladen.</span>
     </div>
   {:else if error}
-    <div class="alert alert-error">
+    <div class="alert alert-error shadow-sm sessions-alert">
       <span>{error}</span>
     </div>
   {:else if sessions.length === 0}
-    <div class="alert">
+    <div class="alert shadow-sm sessions-alert">
       <span>Keine Sessions verfügbar.</span>
     </div>
   {:else}
     <div class="day-grid">
       {#each groupedSessions as group, i}
         <section class="session-day">
-          <div
-            class="day-card"
+          <article class="card sessions-day-card"
             style={`--day-color: ${colors[i % colors.length]};`}
           >
-            <h2 class="day-card-title">
+            <div class="card-body day-card-body">
+            <h2 class="card-title day-card-title">
               <span class="day-card-weekday">{formatDayWeekday(group.day)}</span
               >
               <span class="day-card-date">{formatDayDate(group.day)}</span>
             </h2>
 
-            <div class="day-card-table-wrap">
-              <table class="session-table">
+            <div class="overflow-x-auto day-card-table-wrap">
+              <table class="table table-sm sessions-table">
                 <thead>
                   <tr>
                     <th>Zeitslot</th>
@@ -263,6 +272,7 @@
               </table>
             </div>
           </div>
+          </article>
         </section>
       {/each}
     </div>
