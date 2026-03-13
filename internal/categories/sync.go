@@ -97,6 +97,7 @@ func (s *Syncer) Run(app core.App, trigger string) error {
 		record.Set("source", coremanagerSourceName)
 		record.Set("source_category_id", coremanagerSourceCategory)
 		record.Set("external_id", category.ExternalID)
+		record.Set("color", ColorForExternalID(category.ExternalID))
 		record.Set("slug", category.Slug)
 		record.Set("title", category.Title)
 		record.Set("description", category.Description)

@@ -225,6 +225,9 @@ func (s *Syncer) Run(app core.App, trigger string) error {
 		return fmt.Errorf("load existing sessions: %w", err)
 	}
 
+	loc := loadAnalyticsLocation()
+	now := time.Now().In(loc)
+
 	for _, record := range existing {
 		externalKey := record.GetString("external_key")
 		if _, ok := seen[externalKey]; ok {
@@ -232,6 +235,10 @@ func (s *Syncer) Run(app core.App, trigger string) error {
 		}
 
 		if record.GetBool("is_deleted") {
+			continue
+		}
+
+		if sessionHasStarted(record, now, loc) {
 			continue
 		}
 
@@ -260,6 +267,25 @@ func (s *Syncer) Run(app core.App, trigger string) error {
 	)
 
 	return nil
+}
+
+func sessionHasStarted(record *core.Record, now time.Time, loc *time.Location) bool {
+	if start, ok := parseEventStart(record.GetString("start"), loc); ok {
+		return !start.After(now)
+	}
+
+	eventDate := strings.TrimSpace(record.GetString("event_date"))
+	if eventDate == "" {
+		return false
+	}
+
+	parsedDate, err := time.ParseInLocation("2006-01-02", eventDate, loc)
+	if err != nil {
+		return false
+	}
+
+	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	return parsedDate.Before(startOfToday)
 }
 
 func loadActiveCategoryIDs(app core.App) ([]string, error) {

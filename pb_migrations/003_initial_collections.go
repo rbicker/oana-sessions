@@ -101,6 +101,8 @@ func init() {
 
 		participants := core.NewBaseCollection(sessionParticipantsCollectionName)
 		participants.Fields.Add(
+			&core.AutodateField{Name: "created", OnCreate: true},
+			&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true},
 			&core.RelationField{
 				Name:         "session",
 				CollectionId: sessions.Id,
