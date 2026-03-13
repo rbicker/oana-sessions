@@ -19,6 +19,8 @@ func init() {
 		} else {
 			categories := core.NewBaseCollection(categoriesCollectionName)
 			categories.Fields.Add(
+				&core.AutodateField{Name: "created", OnCreate: true},
+				&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true},
 				&core.TextField{Name: "external_key", Required: true, Max: 255},
 				&core.TextField{Name: "source", Required: true, Max: 120},
 				&core.NumberField{Name: "source_category_id", Required: true, OnlyInt: true},
@@ -52,6 +54,8 @@ func init() {
 			sessions.ListRule = publicRule
 			sessions.ViewRule = publicRule
 			sessions.Fields.Add(
+				&core.AutodateField{Name: "created", OnCreate: true},
+				&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true},
 				&core.TextField{Name: "external_key", Required: true, Max: 255},
 				&core.TextField{Name: "source", Required: true, Max: 120},
 				&core.NumberField{Name: "source_category_id", Required: true, OnlyInt: true},
