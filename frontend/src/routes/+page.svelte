@@ -1,5 +1,6 @@
 <script>
   import { onDestroy, onMount } from "svelte";
+  import { afterNavigate, goto } from "$app/navigation";
   import PocketBase from "pocketbase";
 
   let loading = true;
@@ -13,6 +14,11 @@
   let categoryOptions = [];
   let categoryVisibility = {};
   let filtersCollapsed = false;
+  let weekStart = "";
+  let currentWeekStart = "";
+  let weekEnd = "";
+  let weekRequestId = 0;
+  let categoriesLoaded = false;
   const dayColors = [
     "#FFADAD",
     "#FFD6A5",
@@ -29,17 +35,20 @@
       : "";
   const pb = new PocketBase(apiBase);
 
-  const collectionFilter =
-    "is_deleted = false && source = 'coremanager' && source_category_id = 4";
+  const collectionFilter = "source = 'coremanager' && source_category_id = 4";
 
   const formatDayWeekday = (day) =>
-    new Date(day).toLocaleDateString(["de-CH"], { weekday: "long" });
+    new Date(`${day}T12:00:00Z`).toLocaleDateString(["de-CH"], {
+      weekday: "long",
+      timeZone: "UTC",
+    });
 
   const formatDayDate = (day) =>
-    new Date(day).toLocaleDateString(["de-CH"], {
+    new Date(`${day}T12:00:00Z`).toLocaleDateString(["de-CH"], {
       day: "2-digit",
       month: "2-digit",
       year: "2-digit",
+      timeZone: "UTC",
     });
 
   const toDate = (value) => {
@@ -83,6 +92,15 @@
   const normalizeSessionTitle = (value) =>
     (value || "").replace(/^1\. OANA Surf /, "");
 
+  const summerPassCategories = new Set(["basic session", "advanced session"]);
+  const isSummerPassCategory = (category) =>
+    summerPassCategories.has(
+      (category.title || "")
+        .replace(/^(?:\d+\.\s*)?OANA Surf\s+/i, "")
+        .trim()
+        .toLowerCase(),
+    );
+
   const toSessionViewModel = (record) => ({
     id: record.id,
     day: record.event_date || (record.start || "").split("T")[0],
@@ -97,6 +115,7 @@
       "#94a3b8",
     participants: record.participants_count ?? 0,
     max_participants: record.max_participants ?? 0,
+    isDeleted: record.is_deleted === true,
     updated_hint:
       record.participants_synced_at ||
       record.last_synced_at ||
@@ -119,11 +138,97 @@
     return date.toISOString().slice(0, 10);
   };
 
+  const getWeekStart = (day) => {
+    const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+    return addDaysToIsoDate(day, -(weekday === 0 ? 6 : weekday - 1));
+  };
+
+  const parseWeek = (value) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return null;
+    const date = new Date(`${value}T12:00:00Z`);
+    if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+      return null;
+    }
+    return getWeekStart(value);
+  };
+
+  const navigateToWeek = (startDay, replaceState = false) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("week", startDay);
+    void goto(url, { replaceState, noScroll: true, keepFocus: true });
+  };
+
+  const syncWeekFromUrl = (url) => {
+    if (!categoriesLoaded) return;
+
+    currentWeekStart = getWeekStart(getTodayZurich());
+    const weekParameter = url.searchParams.get("week");
+    const selectedWeek = parseWeek(weekParameter) || currentWeekStart;
+    if (weekParameter !== selectedWeek) {
+      navigateToWeek(selectedWeek, true);
+    }
+    if (weekStart !== selectedWeek) {
+      void loadWeek(selectedWeek);
+    }
+  };
+
+  afterNavigate(({ to }) => {
+    if (to?.url) syncWeekFromUrl(to.url);
+  });
+
+  const loadWeek = async (startDay) => {
+    const requestId = ++weekRequestId;
+    weekStart = startDay;
+    weekEnd = addDaysToIsoDate(startDay, 6);
+    loading = true;
+    error = "";
+
+    try {
+      const sessionRecords = await pb.collection("sessions").getFullList({
+        sort: "start",
+        filter: `${collectionFilter} && event_date >= '${startDay}' && event_date <= '${weekEnd}'`,
+        fields:
+          "id,event_date,start,end,title,category_external_id,participants_count,max_participants,participants_synced_at,last_synced_at,updated,is_deleted",
+      });
+
+      if (requestId !== weekRequestId) return;
+      sessions = sessionRecords.map(toSessionViewModel);
+      lastUpdated =
+        sessions
+          .map((session) => session.updated_hint)
+          .filter(Boolean)
+          .sort()
+          .at(-1) || "";
+    } catch (err) {
+      if (requestId !== weekRequestId) return;
+      error = err instanceof Error ? err.message : "Failed to load sessions";
+    } finally {
+      if (requestId === weekRequestId) loading = false;
+    }
+  };
+
   const setAllCategoriesVisibility = (visible) => {
     categoryVisibility = Object.fromEntries(
       categoryOptions.map((category) => [category.externalId, visible]),
     );
   };
+
+  const selectSummerPass = () => {
+    categoryVisibility = Object.fromEntries(
+      categoryOptions.map((category) => [
+        category.externalId,
+        isSummerPassCategory(category),
+      ]),
+    );
+  };
+
+  const isSummerPassSelected = () =>
+    categoryOptions.some(isSummerPassCategory) &&
+    categoryOptions.every(
+      (category) =>
+        (categoryVisibility[category.externalId] !== false) ===
+        isSummerPassCategory(category),
+    );
 
   const toggleCategoryVisibility = (externalId) => {
     categoryVisibility = {
@@ -154,11 +259,15 @@
 
     const todayZurich = getTodayZurich();
     const recordDay = record.event_date || (record.start || "").split("T")[0];
-    if (recordDay !== todayZurich) {
+    if (
+      recordDay !== todayZurich ||
+      todayZurich < weekStart ||
+      todayZurich > weekEnd
+    ) {
       return;
     }
 
-    if (event.action === "delete" || record.is_deleted) {
+    if (event.action === "delete") {
       sessions = sessions.filter((session) => session.id !== record.id);
       return;
     }
@@ -210,22 +319,11 @@
 
     try {
       const todayZurich = getTodayZurich();
-      const endDay = addDaysToIsoDate(todayZurich, 6);
-      const dateRangeFilter = `event_date >= '${todayZurich}' && event_date <= '${endDay}'`;
-
-      const [categoryRecords, sessionRecords] = await Promise.all([
-        pb.collection("categories").getFullList({
-          sort: "position,title",
-          filter: collectionFilter,
-          fields: "external_id,title,color,position",
-        }),
-        pb.collection("sessions").getFullList({
-          sort: "start",
-          filter: `${collectionFilter} && ${dateRangeFilter}`,
-          fields:
-            "id,event_date,start,end,title,category_external_id,participants_count,max_participants,participants_synced_at,last_synced_at,updated,is_deleted",
-        }),
-      ]);
+      const categoryRecords = await pb.collection("categories").getFullList({
+        sort: "position,title",
+        filter: `is_deleted = false && ${collectionFilter}`,
+        fields: "external_id,title,color,position",
+      });
 
       categoriesByExternalId = Object.fromEntries(
         categoryRecords.map((category) => [
@@ -240,13 +338,8 @@
       }));
       setAllCategoriesVisibility(true);
 
-      sessions = sessionRecords.map(toSessionViewModel);
-      lastUpdated =
-        sessions
-          .map((session) => session.updated_hint)
-          .filter(Boolean)
-          .sort()
-          .at(-1) || "";
+      categoriesLoaded = true;
+      syncWeekFromUrl(new URL(window.location.href));
 
       try {
         await pb.collection("sessions").subscribe(
@@ -264,7 +357,6 @@
       }
     } catch (err) {
       error = err instanceof Error ? err.message : "Failed to load sessions";
-    } finally {
       loading = false;
     }
   });
@@ -293,6 +385,37 @@
     </div>
   </nav>
   -->
+  {#if weekStart}
+    <nav class="week-navigation" aria-label="Wochennavigation">
+      <button
+        type="button"
+        class="btn btn-outline"
+        on:click={() => navigateToWeek(addDaysToIsoDate(weekStart, -7))}
+        aria-label="Vorherige Woche"
+      >
+        ← <span>Vorherige Woche</span>
+      </button>
+      <div class="week-navigation-current" aria-live="polite">
+        <strong>{formatDayDate(weekStart)} – {formatDayDate(weekEnd)}</strong>
+        <button
+          type="button"
+          class="week-today-button"
+          disabled={weekStart === currentWeekStart}
+          on:click={() => navigateToWeek(getWeekStart(getTodayZurich()))}
+        >
+          Diese Woche
+        </button>
+      </div>
+      <button
+        type="button"
+        class="btn btn-outline"
+        on:click={() => navigateToWeek(addDaysToIsoDate(weekStart, 7))}
+        aria-label="Nächste Woche"
+      >
+        <span>Nächste Woche</span> →
+      </button>
+    </nav>
+  {/if}
   {#if categoryOptions.length > 0}
     <section class="sessions-filters" aria-label="Session category filters">
       <div class="sessions-filters-header">
@@ -307,15 +430,28 @@
             >▾</span
           >
         </button>
-        <label class="sessions-filter-toggle">
-          <input
-            type="checkbox"
-            checked={areAllCategoriesVisible()}
-            on:change={(event) =>
-              setAllCategoriesVisibility(event.currentTarget.checked)}
-          />
-          <span>Alle anzeigen</span>
-        </label>
+        <div class="sessions-filter-shortcuts">
+          <label class="sessions-filter-toggle">
+            <input
+              type="checkbox"
+              checked={isSummerPassSelected()}
+              on:change={(event) =>
+                event.currentTarget.checked
+                  ? selectSummerPass()
+                  : setAllCategoriesVisibility(true)}
+            />
+            <span>Summer Pass</span>
+          </label>
+          <label class="sessions-filter-toggle">
+            <input
+              type="checkbox"
+              checked={areAllCategoriesVisible()}
+              on:change={(event) =>
+                setAllCategoriesVisibility(event.currentTarget.checked)}
+            />
+            <span>Alle anzeigen</span>
+          </label>
+        </div>
       </div>
 
       {#if !filtersCollapsed}
@@ -382,8 +518,8 @@
                   </thead>
                   <tbody>
                     {#each group.sessions as session}
-                      <tr>
-                        <td
+                      <tr class:session-deleted={session.isDeleted}>
+                        <td class="session-time"
                           >{formatTime(session.start)} - {formatTime(
                             session.end,
                           )}</td
@@ -398,7 +534,8 @@
                               style={`background: ${session.categoryColor};`}
                               aria-hidden="true"
                             ></span>
-                            <span>{session.title}</span>
+                            <span class="session-title-text">{session.title}</span>
+                            {#if session.isDeleted}<span class="sr-only"> (gelöscht)</span>{/if}
                           </div>
                         </td>
                         <td class="participants-cell"
@@ -433,10 +570,60 @@
     backdrop-filter: blur(10px);
   }
 
+  .week-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+  }
+
+  .week-navigation-current {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.2rem;
+    color: var(--color-neutral);
+  }
+
+  .week-today-button {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--color-primary);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .week-today-button:disabled {
+    opacity: 0.55;
+    cursor: default;
+    text-decoration: none;
+  }
+
+  @media (max-width: 640px) {
+    .week-navigation .btn {
+      min-height: 2.5rem;
+      padding: 0 0.75rem;
+    }
+
+    .week-navigation .btn span {
+      display: none;
+    }
+  }
+
   .sessions-filters-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .sessions-filter-shortcuts {
+    display: flex;
+    align-items: center;
     gap: 1rem;
     flex-wrap: wrap;
   }
@@ -493,6 +680,16 @@
     display: inline-flex;
     align-items: center;
     gap: 0.55rem;
+  }
+
+  .session-deleted {
+    opacity: 0.6;
+  }
+
+  .session-deleted .session-time,
+  .session-deleted .session-title-text,
+  .session-deleted .participants-cell {
+    text-decoration: line-through;
   }
 
   .session-category-dot {
